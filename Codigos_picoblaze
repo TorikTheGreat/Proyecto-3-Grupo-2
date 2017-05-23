@@ -1,0 +1,150 @@
+
+
+
+;///////////////////////////////////////////////////////////////////////////////////////////////////////
+
+;	Copiar datos del RTC, del input port, a un registro y luego a la ram
+
+	RDPRT $0, in_sec_clock
+	WRMEM $0, sec_clock
+
+	RDPRT $0, in_min_clock
+	WRMEM $0, min_clock
+
+	RDPRT $0, in_hr_clock
+	WRMEM $0, hr_clock
+
+	RDPRT $0, in_date_clock
+	WRMEM $0, date_clock
+
+	RDPRT $0, in_month_clock
+	WRMEM $0, month_clock
+
+	RDPRT $0, in_year_clock
+	WRMEM $0, year_clock
+
+	RDPRT $0, in_sec_timer
+	WRMEM $0, sec_timer
+
+	RDPRT $0, in_min_timer
+	WRMEM $0, min_timer
+
+	RDPRT $0, in_hr_timer
+	WRMEM $0, hr_timer
+
+
+;	Manera menos troglodita: usar $F como contador y $E y $D como pointers. La idea es
+;	poner la direccion del puerto de entrada en $D e inicialmente sumarle para que este
+;	en la ultima direccion que tiene que accesar: in_hr_timer. Lo mismo pasa con las direcciones
+;	de memoria Luego se encicla saltando hasta que el contador, que decide con que direcciones va
+;	a interactuar en cada ciclo, se haga cero y asi prosigue con el programa. Importante notar
+;	que este algoritmo funciona solamente si los puertos de entrada y las direcciones de memoria
+;	estan en el orden establecido por el primer algoritmo.
+
+		LOAD $F, 0x8
+
+ciclo_lectura:  LOAD $E, sec_clock
+		LOAD $D, in_sec_clock
+		ADD  $E, $F
+		ADD  $D, $F
+
+		RDPRT $0, $D	; Esta instruccion pone en PORT_ID el dato de $D y el input en $0
+		WRMEM $0, $E	; Esta pone en PORT_ID el dato de $E y en output $0
+
+		SUB $F, 0x1
+		JUMP NZ, ciclo_lectura
+
+
+;	Pensandolo bien, no se que tanto mas eficiente sea este nuevo algoritmo, considerando que
+;	accesa a memoria la misma cantidad de veces y ademas usa la alu para aritmetica. Dicho esto,
+;	es posible que tenga un limite de lineas de codigo y este tiene menos lineas asi que
+;	eventualmente me dare cuenta de cual me conviene usar.
+
+;///////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
+
+
+
+
+;\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
+;	Ahora, ya que tengo los datos en memoria, se los paso a la VGA para que los ponga en pantalla.
+;	Imagino que sera un proceso similar al anterior pero inverso. Intentare evitar el uso de 
+;	puertos bidireccionales porque suena como un dolor, si es del caso modificare todo luego.
+
+;	Voy a poner aqui una lista tentativa de nombres de puertos y espacios en la RAM.
+;	Primero los puertos de salida:
+;	out_VGA_clock_sec
+;	out_VGA_clock_min
+;	out_VGA_clock_hr
+;	out_VGA_clock_date
+;	out_VGA_clock_month
+;	out_VGA_clock_year
+;	out_VGA_timer_sec
+;	out_VGA_timer_min
+;	out_VGA_timer_hr
+
+
+;	Las direcciones de RAM ya estan establecidas, mira el primer algoritmo
+
+		LOAD $F, 0x8
+	
+ciclo_VGA:	LOAD $E, out_VGA_clock_sec
+		LOAD $D, sec_clock
+		
+		ADD $E, $F
+		ADD $D, $F
+
+		RDMEM $0, $D
+		WRPRT $0, $E
+		
+		SUB $F, 0x1
+		JUMP NZ, ciclo_VGA
+
+;\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
+
+
+
+
+;++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+;	Sigue el manejo de inputs. Lo que mas facilmente me vino a la mente fue checkear cada vuelta
+;	del programa, pero ya establecimos que esa no es la mejor manera. Quiero usar interrupts,
+;	aunque nunca he usado nada parecido. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+;++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+
+
+
+
+
+
+
+
+
+
+
