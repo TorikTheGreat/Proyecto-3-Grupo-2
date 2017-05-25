@@ -108,12 +108,17 @@
 		#equ usr_F3,		0x04
 		#equ usr_up		0x00
 		#equ usr_down	0x00
+		#equ usr_left	0x00
+		#equ usr_right	0x00
 
 	; *************************************************************************************************************************
 	; \navHw "Register renaming"
 	; *************************************************************************************************************************
 		#equ reg_work,	sF
-		#equ cursor,		s5
+		#equ cursor,		s1	;Detalle sobre este registro: los 4 MSB representaran cual area
+							;se modificara, los 4 LSB representan cual columna. Por ejemplo, 
+							;con los MSB puedo decidir de modificar el reloj y con los LSB
+							;hago lo mismo para segundos, minutos u horas.
 	
 	; *************************************************************************************************************************
 	; \navHw "Port addresses"
@@ -203,22 +208,100 @@ ciclo_VGA:			LOAD sE, out_VGA_clock_sec
 					jump	mainLoop
 	
 	
- entra_F1:			load cursor, 0x01
+ entra_F1:			load cursor, 0x10
 					 					 					
 					ret
 		
- entra_F2:			load cursor, 0x02
+ entra_F2:			load cursor, 0x20
 					ret
 
- entra_F3:			load cursor, 0x03
+ entra_F3:			load cursor, 0x30
 					ret
  
- entra_up:			
-					ret
- entra_down:
+ entra_right:		load sA, cursor			;	Si entra derecha en las flechas, tengo que asegurarme
+ 					and sA, 	 0x0f			;	de que se quede dentro de las  columnas. Este pedazo 
+ 											;	de codigo compara el cursor con el caso limite y si
+											;	lo encuentra, como ya sabe que el usuario quiere				 					
+					sub sA, 0x02				;	ir a la casilla derecha, cicla a la de mas izquierda.
+					jump z, mucho_cursor
+
+					add cursor, 0x01
+					
+					ret					
+						
+ mucho_cursor:		and cursor, 0xf0	 					
+ 					ret
+ 					
+ 					
+ entra_left:			load sA, cursor
+ 					and sA, 0x0f
+ 					
+ 					add sA, sA			; aqui quiero que si esta en cero, es decir al limite left,
+ 										; vaya al limire derecho: si lo sumo a si mismo y es cero
+ 					jump z, poco_cursor	; significa que en efecto esta en el limite
+					
+					sub cursor, 0x01										
+					
 					ret
 	
-	
+ poco_cursor:		or cursor, 0xf2
+ 					ret
+
+
+
+					;Lo primero cuando entra up o down es decodificar cursor para que apunte a
+					;el espacio de la ram que busco. recuerda que los espacios de la ram para los 
+					;datos empiezan en 0x30:
+
+ entra_up:			load s2, 0x30
+ 					load s3, cursor
+ 					load s4, cursor
+ 					
+ 					and s3, 0xf0			; MSB de cursor
+					and s4, 0x0f			; LSB de cursor
+					
+					sr0 s3
+					sr0 s3
+					sr0 s3
+					sr0 s3					
+					
+					add s3, s3			; MSB*3
+					add s3, s3
+					add s3, s3 					
+					
+					add s3, s4		
+					
+					add s3, s2			; Asi quedo en s3 la direccion en ram del objetivo
+
+					rdmem s5, (s3)
+					add s5, 0x01
+ 					
+ 					ret
+ 					
+ entra_down:			load s2, 0x30
+ 					load s3, cursor
+ 					load s4, cursor
+ 					
+ 					and s3, 0xf0			; MSB de cursor
+					and s4, 0x0f			; LSB de cursor
+					
+					sr0 s3
+					sr0 s3
+					sr0 s3
+					sr0 s3					
+					
+					add s3, s3			; MSB*3
+					add s3, s3
+					add s3, s3 					
+					
+					add s3, s4		
+					
+					add s3, s2			; Asi quedo en s3 la direccion en ram del objetivo
+
+					rdmem s5, (s3)
+					sub s5, 0x01
+
+ 					ret
 	
 	
 	
@@ -266,13 +349,28 @@ isr:
 					sub sF, usr_down
 					call nz, entra_down
 						
+					;Checkea si llego flecha derecha
+					load sF, s0
+					sub sF, usr_right
+					call nz, entra_right
 					
+					;Checkea si llego flecha izquierda
+					load sF, s0
+					sub sF, usr_left
+					call nz, entra_left
+
+					;Aqui tiene que refrescar el dato en el RTC, pero como no se como lo hara la 
+					;maquina intermedia no hare nada todavia. Pero que no se te olvide carajo.
+
 					retI	enable
 
 					#org	addr,		0x3FF
 					jump	isr
 
-
+					;	Es assembly muy versatil, no se puede negar,
+					;	pero el tedio no termina, tanto me hace llorar.
+					;	Es ademas un considerable esfuerzo mental;
+					;	quien se sorprende, en ingenieria es natural.
 					
 ; *****************************************************************************************************************************
 ; \navGrpEnd
